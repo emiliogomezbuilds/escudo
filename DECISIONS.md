@@ -138,15 +138,21 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
     (no key in this sandbox) — until the user adds the key to Vercel, matched events will silently
     use `fallbackScript()` rather than erroring, which is deliberate graceful degradation, not a bug.
 
+- User added `GEMINI_API_KEY` to Vercel themselves (Settings → Environment Variables, all
+  environments), pushed, deploy succeeded. **Confirmed live**: submitted a matching event and got a
+  genuine Gemini response (~1 minute round trip, not the instant fallback) — specific to the actual
+  event data ("Doña Mari", "$8,500 pesos", "cuenta nueva"), calm, asks the contact to call and check
+  in directly, and contains no forbidden authenticity language (no "confirmado"/"falso"/"clonado"/
+  etc. — `isSafeScript()` didn't need to intervene, but would have). Feature 6 fully verified
+  end-to-end.
+
 **Not done yet**
 - Twilio Voice call placement + real Twilio Verify for contacts (Feature 7).
 - Alert history dashboard (Feature 8).
 
-**Tomorrow's first move**: user adds `GEMINI_API_KEY` to Vercel env vars, pushes this commit, confirms
-the deploy builds, then submits a matching simulated event on
-`https://escudo-sandy.vercel.app/dashboard` and checks whether the displayed script reads like a real
-Gemini response (specific/varied wording) vs. the fallback template (fixed wording) — that confirms
-whether the live key is actually wired up correctly. Then start Feature 7 (Twilio Voice call
-placement) per `docs/BUILD_PROMPT.md`; will need `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-`TWILIO_PHONE_NUMBER` from the user (same handling rule: I'll ask them to set these in Vercel
-themselves).
+**Tomorrow's first move**: start Feature 7 (Twilio Voice call placement) per `docs/BUILD_PROMPT.md`.
+Will need `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` from the user's Twilio
+trial account (same handling rule as Gemini: I'll ask them to set these in Vercel themselves, never
+enter credentials myself). Trial accounts can only call **verified** numbers — the family contact's
+number must go through Twilio's own verification (not just our app's manual "Confirmar número"
+checkbox) before a real call will succeed, so that's worth surfacing to the user early.
