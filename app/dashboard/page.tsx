@@ -1,12 +1,8 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { InfoIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-
-// This page reads the caller's cookies/session and queries per-user rows —
-// it must never be statically prerendered at build time (no real session
-// exists then), or the build fails trying to render it with no cookies.
-export const dynamic = "force-dynamic";
 import {
   Card,
   CardContent,
@@ -18,7 +14,13 @@ import { FamilyContactForm } from "@/components/family-contact-form";
 import { FamilyContactList } from "@/components/family-contact-list";
 import { ThresholdForm } from "@/components/threshold-form";
 
-export default async function DashboardPage() {
+// This project uses Next.js Cache Components (next.config.ts: cacheComponents:
+// true). Under that model there's no `export const dynamic` — instead, any
+// part of the page that reads cookies/session or queries per-user rows must
+// be isolated in its own component and wrapped in <Suspense> below, so the
+// build can prerender the static shell and stream this part in at request
+// time instead of trying (and failing) to prerender it with no real session.
+async function FamilyDashboardContent() {
   const supabase = await createClient();
   const { data: auth, error: authError } = await supabase.auth.getClaims();
 
@@ -38,14 +40,7 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          Panel del administrador familiar — visible solo para tu cuenta.
-        </div>
-      </div>
-
+    <>
       <div className="flex flex-col gap-2 items-start">
         <h1 className="font-bold text-2xl">Panel familiar</h1>
         <p className="text-muted-foreground">
@@ -92,6 +87,25 @@ export default async function DashboardPage() {
         evento de riesgo y el historial de alertas llegan en próximas
         features.
       </div>
+    </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <div className="flex-1 w-full flex flex-col gap-12">
+      <div className="w-full">
+        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
+          <InfoIcon size="16" strokeWidth={2} />
+          Panel del administrador familiar — visible solo para tu cuenta.
+        </div>
+      </div>
+
+      <Suspense
+        fallback={<p className="text-muted-foreground">Cargando…</p>}
+      >
+        <FamilyDashboardContent />
+      </Suspense>
     </div>
   );
 }
