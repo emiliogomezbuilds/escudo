@@ -36,3 +36,53 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
 
 **Tomorrow's first move**: enable Google as an OAuth provider in the Supabase dashboard
 (Authentication → Providers), then build Feature 2 per `docs/BUILD_PROMPT.md`.
+
+## Session 2 — 2026-08-30 — Feature 2 (Google auth), Feature 3 (data model + RLS), Feature 4 (family setup)
+
+**What happened**
+- Enabled Google as an OAuth provider in Supabase (Authentication → Sign In / Providers), using a
+  Google Cloud OAuth client. Set Supabase **URL Configuration**: Site URL
+  `https://escudo-sandy.vercel.app`, Redirect URLs for both the production domain and
+  `localhost:3000`.
+- Verified end-to-end: signing in with Google at `/auth/login` lands on `/dashboard`, showing the
+  signed-in email; the route redirects unauthenticated visitors to login (confirmed via
+  `WelcomeMessage`'s `getClaims()` check).
+- Created the four tables from `docs/BUILD_PROMPT.md` §3 in the Supabase SQL Editor, all with RLS
+  **on** and an `owner_id = auth.uid()` policy (or, for `alert_calls`, ownership via its parent
+  `risk_events` row): `family_contacts`, `alert_thresholds`, `risk_events`, `alert_calls`. Ran
+  successfully ("Success. No rows returned"); confirmed all four appear in Table Editor with the
+  RLS lock icon. Saved the exact SQL to `supabase/schema.sql` for version-controlled reference
+  (not auto-applied by any migration tool yet — run manually in the SQL Editor if reproducing).
+- Built Feature 4 (family contact + threshold setup) in the app:
+  - `app/dashboard/actions.ts` — server actions `addFamilyContact`, `verifyFamilyContact`,
+    `deleteFamilyContact`, `saveThreshold`. Inputs validated server-side (E.164 phone regex,
+    threshold > 0) before touching the DB. Inserts rely on `family_contacts.owner_id` /
+    `alert_thresholds.owner_id` defaulting to `auth.uid()`, using the request-scoped
+    (cookie-authenticated) Supabase client — never the service-role key.
+  - `components/family-contact-form.tsx`, `components/threshold-form.tsx` — client forms using
+    `useActionState` for inline error/success feedback.
+  - `components/family-contact-list.tsx` — lists saved contacts with a verified/pending badge and
+    per-row "Confirmar número" / "Eliminar" buttons (server actions bound with `.bind(null, id)`).
+  - `app/dashboard/page.tsx` rewritten to fetch contacts + threshold server-side and render both
+    cards, replacing the "coming soon" placeholder text.
+- **Verification approach deviates from a literal reading of BUILD_PROMPT.md §4**: no Twilio
+  credentials exist in this project yet (`.env.local` only has the Supabase vars — `GEMINI_API_KEY`
+  and `TWILIO_*` are still blank in `.env.example`), so contact verification here is the explicitly
+  allowed fallback — "a simple manual confirmation flow" — not Twilio Verify. A contact starts
+  `verified = false` and is visibly badged "Verificación pendiente"; the owner clicks "Confirmar
+  número" to flip it to `true`. Real Twilio Verify (or keeping this manual flow deliberately) should
+  be revisited once Twilio credentials exist, alongside Feature 7 (voice call placement).
+- Checked: `npm run lint` and `npx tsc --noEmit` both clean. `npm run build` could not run in this
+  sandbox (no network access to fetch the Turbopack/SWC binary) — this is a sandbox limitation, not
+  a code issue; Vercel's build environment has this cached and should build normally.
+
+**Not done yet**
+- Simulate Event form + pattern-match logic (Feature 5).
+- Gemini alert script generation (Feature 6).
+- Twilio Voice call placement + real Twilio Verify for contacts (Feature 7).
+- Alert history dashboard (Feature 8).
+
+**Tomorrow's first move**: push this commit, confirm the Vercel deploy builds and the family setup
+form works end-to-end on `https://escudo-sandy.vercel.app/dashboard` (add a contact, confirm it,
+save a threshold), then start Feature 5 (simulate-event form + pattern-match logic) per
+`docs/BUILD_PROMPT.md`.
