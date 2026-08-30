@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { generateAlertScript } from "@/lib/gemini";
 
 type ActionResult = { error?: string; success?: boolean };
 
@@ -103,7 +104,10 @@ export async function saveThreshold(formData: FormData): Promise<ActionResult> {
 const UNKNOWN_CALL_WINDOW_MIN = 30; // call must be this recent to count
 const APP_OPEN_WINDOW_MIN = 15; // app-open must be this recent to count
 
-type SimulateResult = ActionResult & { matched?: boolean };
+type SimulateResult = ActionResult & {
+  matched?: boolean;
+  scriptText?: string;
+};
 
 export async function simulateRiskEvent(
   formData: FormData,
@@ -140,7 +144,7 @@ export async function simulateRiskEvent(
 
   const { data: threshold } = await supabase
     .from("alert_thresholds")
-    .select("min_amount")
+    .select("min_amount, protected_person_label")
     .eq("owner_id", ownerId)
     .maybeSingle();
 
@@ -157,16 +161,38 @@ export async function simulateRiskEvent(
     minutesSinceAppOpen <= APP_OPEN_WINDOW_MIN &&
     minutesSinceCall >= minutesSinceAppOpen;
 
-  const { error } = await supabase.from("risk_events").insert({
-    event_type: "llamada_desconocida_seguida_de_transferencia",
-    amount,
-    payee_label: payeeLabel,
-    matched,
-    is_simulated: true,
-  });
+  const { data: insertedEvent, error } = await supabase
+    .from("risk_events")
+    .insert({
+      event_type: "llamada_desconocida_seguida_de_transferencia",
+      amount,
+      payee_label: payeeLabel,
+      matched,
+      is_simulated: true,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
 
+  // Feature 6: on a matched event, generate the alert script (Feature 7 —
+  // actually placing the Twilio call — reads this row later; call_status
+  // stays "pending" until that exists).
+  let scriptText: string | undefined;
+  if (matched && insertedEvent) {
+    scriptText = await generateAlertScript({
+      protectedPersonLabel: threshold.protected_person_label,
+      amount,
+      payeeLabel,
+    });
+
+    await supabase.from("alert_calls").insert({
+      risk_event_id: insertedEvent.id,
+      script_text: scriptText,
+      call_status: "pending",
+    });
+  }
+
   revalidatePath("/dashboard");
-  return { success: true, matched };
+  return { success: true, matched, scriptText };
 }

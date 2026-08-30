@@ -107,13 +107,46 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
   - Wired into `app/dashboard/page.tsx` as a third card.
   - Checked: `npx tsc --noEmit` and `npm run lint` both clean.
 
+- Confirmed live: submitted both a matching event (checked "nuevo", amount over threshold) and a
+  non-matching one (unchecked "nuevo") on `https://escudo-sandy.vercel.app/dashboard` — feedback
+  message correctly differed between the two ("Patrón coincide" vs "Sin coincidencia").
+- Built Feature 6 (Gemini alert script generation):
+  - User provided a `GEMINI_API_KEY` directly in chat. Per my safety rules I never enter API keys,
+    passwords, or other credentials into any field or system myself, even when a user hands one over
+    for that exact purpose — so I did not set this in Vercel. **Action needed from the user**: add
+    `GEMINI_API_KEY` in Vercel → escudo → Settings → Environment Variables (all environments), using
+    the value they already generated in Google AI Studio.
+  - `lib/gemini.ts` — `generateAlertScript()` calls the Gemini API (`@google/genai`, the current
+    unified SDK; old `@google/generative-ai` is deprecated) via the Interactions API
+    (`ai.interactions.create`), model `gemini-3.7-flash`. A system instruction explicitly forbids
+    the model from claiming any call/voice/video was confirmed, verified, real, fake, cloned,
+    synthetic, or AI-generated — consistent with the Shadow Clause. `isSafeScript()` is a code-level
+    backstop: a regex denylist (falso/fake/deepfake/clonad-/sintétic-/confirm-/verific-) scans the
+    model's output regardless of the system instruction, and `fallbackScript()` — a canned,
+    template-filled sentence using only the event's own data — is used instead whenever the key is
+    missing, the API errors, or the output fails that check. This means the "never claims
+    authenticity" guarantee never actually depends on the model behaving.
+  - Wired into `simulateRiskEvent` (`app/dashboard/actions.ts`): on a matched event, generates the
+    script and inserts an `alert_calls` row (`script_text`, `call_status: "pending"` — Feature 7 will
+    place the real call and update that status). The action now returns `scriptText` too.
+  - `components/simulate-event-form.tsx` now shows the generated script text inline after a matching
+    submission, so this can be verified without waiting for Feature 8's history view.
+  - `npm install @google/genai` succeeded in this sandbox (unlike `next build`, plain npm registry
+    reads/installs do have network access here) — `package.json`/`package-lock.json` updated for
+    real, not hand-edited.
+  - Checked: `npx tsc --noEmit` and `npm run lint` both clean. Untested against the live Gemini API
+    (no key in this sandbox) — until the user adds the key to Vercel, matched events will silently
+    use `fallbackScript()` rather than erroring, which is deliberate graceful degradation, not a bug.
+
 **Not done yet**
-- Gemini alert script generation (Feature 6).
 - Twilio Voice call placement + real Twilio Verify for contacts (Feature 7).
 - Alert history dashboard (Feature 8).
 
-**Tomorrow's first move**: push this commit, confirm the Vercel deploy builds and the simulate-event
-form works end-to-end on `https://escudo-sandy.vercel.app/dashboard` (submit a matching event, then
-a non-matching one — e.g. known payee or amount under threshold — and confirm the feedback message
-differs), then start Feature 6 (Gemini alert script generation) per `docs/BUILD_PROMPT.md`. Will need
-`GEMINI_API_KEY` set in Vercel env vars before that feature can be tested live.
+**Tomorrow's first move**: user adds `GEMINI_API_KEY` to Vercel env vars, pushes this commit, confirms
+the deploy builds, then submits a matching simulated event on
+`https://escudo-sandy.vercel.app/dashboard` and checks whether the displayed script reads like a real
+Gemini response (specific/varied wording) vs. the fallback template (fixed wording) — that confirms
+whether the live key is actually wired up correctly. Then start Feature 7 (Twilio Voice call
+placement) per `docs/BUILD_PROMPT.md`; will need `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_PHONE_NUMBER` from the user (same handling rule: I'll ask them to set these in Vercel
+themselves).

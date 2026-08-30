@@ -12,12 +12,14 @@ import { Label } from "@/components/ui/label";
 type FormState = {
   error?: string;
   matched?: boolean;
+  scriptText?: string;
   submittedAt: number;
 };
 
 const initialState: FormState = {
   error: undefined,
   matched: undefined,
+  scriptText: undefined,
   submittedAt: 0,
 };
 
@@ -42,9 +44,19 @@ export function SimulateEventForm({ hasThreshold }: { hasThreshold: boolean }) {
     async (prev: FormState, formData: FormData): Promise<FormState> => {
       const result = await simulateRiskEvent(formData);
       if (result?.error) {
-        return { error: result.error, matched: undefined, submittedAt: prev.submittedAt };
+        return {
+          error: result.error,
+          matched: undefined,
+          scriptText: undefined,
+          submittedAt: prev.submittedAt,
+        };
       }
-      return { error: undefined, matched: result.matched, submittedAt: Date.now() };
+      return {
+        error: undefined,
+        matched: result.matched,
+        scriptText: result.scriptText,
+        submittedAt: Date.now(),
+      };
     },
     initialState,
   );
@@ -131,10 +143,17 @@ export function SimulateEventForm({ hasThreshold }: { hasThreshold: boolean }) {
 
       {state.error && <p className="text-sm text-red-500">{state.error}</p>}
       {!state.error && state.submittedAt > 0 && state.matched && (
-        <p className="text-sm font-medium text-red-600">
-          ⚠ Patrón coincide — se generaría una alerta real (guion y llamada
-          de voz llegan en próximas features). Evento guardado.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-red-600">
+            ⚠ Patrón coincide — evento guardado. Guion de alerta generado
+            (la llamada de voz real llega en una próxima feature):
+          </p>
+          {state.scriptText && (
+            <p className="rounded-md border bg-muted/50 p-3 text-sm italic">
+              &ldquo;{state.scriptText}&rdquo;
+            </p>
+          )}
+        </div>
       )}
       {!state.error && state.submittedAt > 0 && state.matched === false && (
         <p className="text-sm text-muted-foreground">
