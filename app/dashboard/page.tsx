@@ -2,6 +2,11 @@ import { redirect } from "next/navigation";
 import { InfoIcon } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+
+// This page reads the caller's cookies/session and queries per-user rows —
+// it must never be statically prerendered at build time (no real session
+// exists then), or the build fails trying to render it with no cookies.
+export const dynamic = "force-dynamic";
 import {
   Card,
   CardContent,
