@@ -92,3 +92,81 @@ export async function saveThreshold(formData: FormData): Promise<ActionResult> {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+// --- Feature 5: simulated risk event + pattern-match rule ---
+//
+// SHADOW CLAUSE (docs/PACKET.md): this only ever evaluates a behavioral
+// pattern — timing of a call, an app open, a transfer, whether the payee is
+// new, and the saved dollar threshold. It never inspects, scores, or makes
+// any claim about whether a call, voice, or video is real. No ML model is
+// involved; this is a plain rule below, on purpose.
+const UNKNOWN_CALL_WINDOW_MIN = 30; // call must be this recent to count
+const APP_OPEN_WINDOW_MIN = 15; // app-open must be this recent to count
+
+type SimulateResult = ActionResult & { matched?: boolean };
+
+export async function simulateRiskEvent(
+  formData: FormData,
+): Promise<SimulateResult> {
+  const minutesSinceCall = Number(
+    String(formData.get("minutes_since_call") || "").trim(),
+  );
+  const minutesSinceAppOpen = Number(
+    String(formData.get("minutes_since_app_open") || "").trim(),
+  );
+  const amount = Number(String(formData.get("amount") || "").trim());
+  const payeeLabel = String(formData.get("payee_label") || "").trim();
+  const payeeIsNew = formData.get("payee_is_new") === "on";
+
+  if (!payeeLabel) {
+    return { error: "El nombre del destinatario es obligatorio." };
+  }
+  if (!Number.isFinite(minutesSinceCall) || minutesSinceCall < 0) {
+    return { error: "Minutos desde la llamada debe ser un número válido." };
+  }
+  if (!Number.isFinite(minutesSinceAppOpen) || minutesSinceAppOpen < 0) {
+    return {
+      error: "Minutos desde que se abrió la app debe ser un número válido.",
+    };
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "El monto debe ser un número mayor a 0." };
+  }
+
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getClaims();
+  if (!auth?.claims) return { error: "Sesión no válida." };
+  const ownerId = auth.claims.sub as string;
+
+  const { data: threshold } = await supabase
+    .from("alert_thresholds")
+    .select("min_amount")
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (!threshold) {
+    return {
+      error: "Configura un umbral de alerta antes de simular un evento.",
+    };
+  }
+
+  const matched =
+    payeeIsNew &&
+    amount > threshold.min_amount &&
+    minutesSinceCall <= UNKNOWN_CALL_WINDOW_MIN &&
+    minutesSinceAppOpen <= APP_OPEN_WINDOW_MIN &&
+    minutesSinceCall >= minutesSinceAppOpen;
+
+  const { error } = await supabase.from("risk_events").insert({
+    event_type: "llamada_desconocida_seguida_de_transferencia",
+    amount,
+    payee_label: payeeLabel,
+    matched,
+    is_simulated: true,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  return { success: true, matched };
+}

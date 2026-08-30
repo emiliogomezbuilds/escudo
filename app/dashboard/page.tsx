@@ -13,6 +13,7 @@ import {
 import { FamilyContactForm } from "@/components/family-contact-form";
 import { FamilyContactList } from "@/components/family-contact-list";
 import { ThresholdForm } from "@/components/threshold-form";
+import { SimulateEventForm } from "@/components/simulate-event-form";
 
 // This project uses Next.js Cache Components (next.config.ts: cacheComponents:
 // true). Under that model there's no `export const dynamic` — instead, any
@@ -81,11 +82,24 @@ async function FamilyDashboardContent() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Simular evento de riesgo</CardTitle>
+          <CardDescription>
+            Reemplaza al detector de patrón en el dispositivo (no construido
+            esta semana). Verifica la regla contra tu umbral guardado —
+            nunca analiza si una llamada o video es falso.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SimulateEventForm hasThreshold={!!threshold} />
+        </CardContent>
+      </Card>
+
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
         🔒 Este sistema nunca analiza si una llamada o video es falso — solo
-        reacciona a un patrón de comportamiento. El formulario para simular un
-        evento de riesgo y el historial de alertas llegan en próximas
-        features.
+        reacciona a un patrón de comportamiento. El historial de alertas
+        llega en una próxima feature.
       </div>
     </>
   );

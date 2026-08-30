@@ -76,13 +76,44 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
   sandbox (no network access to fetch the Turbopack/SWC binary) — this is a sandbox limitation, not
   a code issue; Vercel's build environment has this cached and should build normally.
 
+- **Build failures after the first push, both fixed the same session**: the initial Feature 4
+  deploy failed prerendering `/dashboard` (`Error occurred prerendering page "/dashboard"`) because
+  the new page made the whole component async and read cookies/queried per-user rows directly, with
+  no `<Suspense>` boundary — this project has `cacheComponents: true` in `next.config.ts` (Next.js
+  Cache Components), which tries to prerender a static shell and needs dynamic/per-request work
+  isolated behind Suspense to bail out of that shell cleanly. Adding `export const dynamic =
+  "force-dynamic"` (the old App Router escape hatch) made it worse — that flag is explicitly
+  incompatible with `cacheComponents` and failed the build outright with a clearer error naming the
+  conflict. Fix: reverted to the original scaffold's actual pattern (which had worked) — an inner
+  async `FamilyDashboardContent` component holding all cookie/DB-dependent code, wrapped in
+  `<Suspense>` in the page's default export. Lesson for future features: any new Server Component
+  that touches `cookies()` or per-user Supabase queries must go inside a Suspense-wrapped
+  subcomponent, not directly in the page body.
+- Confirmed live end-to-end after the fix: added a contact ("Test Contacto"), saved a threshold
+  ("Doña Mari", 3000) — both persisted and rendered correctly on
+  `https://escudo-sandy.vercel.app/dashboard`.
+- Built Feature 5 (simulate-event form + pattern-match logic):
+  - `simulateRiskEvent` server action in `app/dashboard/actions.ts` — validates inputs (minutes
+    since unknown call, minutes since bank app opened, transfer amount, payee label, payee-is-new
+    checkbox), loads the owner's saved threshold (errors if none saved yet), and computes `matched`
+    with a **plain boolean rule, no ML**: payee is new AND amount > saved threshold AND the call was
+    within the last 30 minutes AND the app-open was within the last 15 minutes AND the call happened
+    before (or same time as) the app-open. Writes a `risk_events` row either way
+    (`is_simulated: true`), consistent with the Shadow Clause — no content/media judgment anywhere
+    in this logic.
+  - `components/simulate-event-form.tsx` — client form, clearly bannered "DATOS SIMULADOS", shows
+    inline "patrón coincide" vs "sin coincidencia" feedback after submit; blocked with a message if
+    no threshold is saved yet.
+  - Wired into `app/dashboard/page.tsx` as a third card.
+  - Checked: `npx tsc --noEmit` and `npm run lint` both clean.
+
 **Not done yet**
-- Simulate Event form + pattern-match logic (Feature 5).
 - Gemini alert script generation (Feature 6).
 - Twilio Voice call placement + real Twilio Verify for contacts (Feature 7).
 - Alert history dashboard (Feature 8).
 
-**Tomorrow's first move**: push this commit, confirm the Vercel deploy builds and the family setup
-form works end-to-end on `https://escudo-sandy.vercel.app/dashboard` (add a contact, confirm it,
-save a threshold), then start Feature 5 (simulate-event form + pattern-match logic) per
-`docs/BUILD_PROMPT.md`.
+**Tomorrow's first move**: push this commit, confirm the Vercel deploy builds and the simulate-event
+form works end-to-end on `https://escudo-sandy.vercel.app/dashboard` (submit a matching event, then
+a non-matching one — e.g. known payee or amount under threshold — and confirm the feedback message
+differs), then start Feature 6 (Gemini alert script generation) per `docs/BUILD_PROMPT.md`. Will need
+`GEMINI_API_KEY` set in Vercel env vars before that feature can be tested live.
