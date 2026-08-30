@@ -1,0 +1,52 @@
+<svg viewBox="0 0 760 480" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <rect width="760" height="480" fill="#F4F1EC"/>
+
+  <!-- Screen 1: Family setup -->
+  <rect x="20" y="20" width="340" height="440" rx="20" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="20" y="20" width="340" height="52" rx="20" fill="#1F2937"/>
+  <text x="190" y="52" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="bold">Escudo Familiar — Configuración</text>
+
+  <text x="44" y="96" fill="#111827" font-size="12" font-weight="bold">Persona protegida</text>
+  <rect x="44" y="104" width="292" height="36" rx="8" fill="#F3F4F6"/>
+  <text x="54" y="127" fill="#6B7280" font-size="11">Doña Mari (ejemplo simulado)</text>
+
+  <text x="44" y="162" fill="#111827" font-size="12" font-weight="bold">Contacto familiar de emergencia</text>
+  <rect x="44" y="170" width="292" height="36" rx="8" fill="#F3F4F6"/>
+  <text x="54" y="193" fill="#6B7280" font-size="11">+52 55 •••• ••42 (verificado)</text>
+
+  <text x="44" y="228" fill="#111827" font-size="12" font-weight="bold">Umbral de alerta</text>
+  <rect x="44" y="236" width="292" height="36" rx="8" fill="#F3F4F6"/>
+  <text x="54" y="259" fill="#6B7280" font-size="11">Transferencia &gt; $3,000 MXN a destinatario nuevo</text>
+
+  <rect x="44" y="292" width="292" height="1" fill="#E5E7EB"/>
+  <text x="44" y="318" fill="#047857" font-size="11" font-weight="bold">🔒 Este sistema nunca:</text>
+  <text x="44" y="336" fill="#047857" font-size="11">analiza si una llamada o video es falso</text>
+  <text x="44" y="352" fill="#6B7280" font-size="10">— solo reacciona a un patrón de comportamiento</text>
+
+  <rect x="44" y="392" width="292" height="48" rx="12" fill="#111827"/>
+  <text x="190" y="421" text-anchor="middle" fill="#FFFFFF" font-size="13" font-weight="bold">Guardar configuración</text>
+
+  <!-- Screen 2: Simulated event + alert log -->
+  <rect x="400" y="20" width="340" height="440" rx="20" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <rect x="400" y="20" width="340" height="52" rx="20" fill="#7C2D12"/>
+  <text x="570" y="52" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="bold">Simular evento de riesgo</text>
+
+  <text x="424" y="96" fill="#111827" font-size="12" font-weight="bold">DATOS SIMULADOS — detector de patrón</text>
+  <rect x="424" y="104" width="292" height="70" rx="8" fill="#FEF3C7" stroke="#D97706"/>
+  <text x="434" y="124" fill="#92400E" font-size="10">Llamada de número desconocido: hace 3 min</text>
+  <text x="434" y="140" fill="#92400E" font-size="10">App bancaria abierta: hace 1 min</text>
+  <text x="434" y="156" fill="#92400E" font-size="10">Transferencia iniciada: $8,500 a payee nuevo</text>
+
+  <rect x="424" y="188" width="292" height="48" rx="12" fill="#DC2626"/>
+  <text x="570" y="217" text-anchor="middle" fill="#FFFFFF" font-size="13" font-weight="bold">Disparar alerta (demo)</text>
+
+  <rect x="424" y="252" width="292" height="1" fill="#E5E7EB"/>
+  <text x="424" y="276" fill="#111827" font-size="12" font-weight="bold">Historial de alertas</text>
+
+  <rect x="424" y="288" width="292" height="60" rx="8" fill="#ECFDF5" stroke="#059669"/>
+  <text x="434" y="306" fill="#065F46" font-size="10" font-weight="bold">✓ Llamada realizada al contacto familiar</text>
+  <text x="434" y="322" fill="#065F46" font-size="10">Guion generado por IA, leído por voz</text>
+  <text x="434" y="338" fill="#065F46" font-size="10">hace 2 minutos</text>
+
+  <text x="570" y="460" text-anchor="middle" fill="#9CA3AF" font-size="10">DETECCIÓN SIMULADA — LLAMADA Y ALERTA REALES</text>
+</svg>
