@@ -14,6 +14,7 @@ import { FamilyContactForm } from "@/components/family-contact-form";
 import { FamilyContactList } from "@/components/family-contact-list";
 import { ThresholdForm } from "@/components/threshold-form";
 import { SimulateEventForm } from "@/components/simulate-event-form";
+import { AlertHistoryList } from "@/components/alert-history-list";
 
 // This project uses Next.js Cache Components (next.config.ts: cacheComponents:
 // true). Under that model there's no `export const dynamic` — instead, any
@@ -29,16 +30,24 @@ async function FamilyDashboardContent() {
     redirect("/auth/login");
   }
 
-  const [{ data: contacts }, { data: threshold }] = await Promise.all([
-    supabase
-      .from("family_contacts")
-      .select("id, name, phone_e164, verified")
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("alert_thresholds")
-      .select("min_amount, protected_person_label")
-      .maybeSingle(),
-  ]);
+  const [{ data: contacts }, { data: threshold }, { data: riskEvents }] =
+    await Promise.all([
+      supabase
+        .from("family_contacts")
+        .select("id, name, phone_e164, verified")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("alert_thresholds")
+        .select("min_amount, protected_person_label")
+        .maybeSingle(),
+      supabase
+        .from("risk_events")
+        .select(
+          "id, amount, payee_label, matched, is_simulated, created_at, alert_calls(id, script_text, call_status, placed_at)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
 
   return (
     <>
@@ -96,10 +105,22 @@ async function FamilyDashboardContent() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de alertas</CardTitle>
+          <CardDescription>
+            Eventos recientes y, cuando corresponde, la llamada real
+            resultante. Visible solo para tu cuenta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertHistoryList events={riskEvents ?? []} />
+        </CardContent>
+      </Card>
+
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
         🔒 Este sistema nunca analiza si una llamada o video es falso — solo
-        reacciona a un patrón de comportamiento. El historial de alertas
-        llega en una próxima feature.
+        reacciona a un patrón de comportamiento.
       </div>
     </>
   );

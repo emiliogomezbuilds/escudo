@@ -176,13 +176,42 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
     Twilio API (no credentials in this sandbox) — next session should push, then run a matching
     simulated event and confirm the verified number actually rings.
 
-**Not done yet**
-- Alert history dashboard (Feature 8) — the last remaining feature in `docs/BUILD_PROMPT.md`.
+- Pushed, deploy succeeded. **Confirmed live, twice**: first attempt failed with a real, specific
+  Twilio error (`Account not authorized to call +525540901948. Perhaps you need to enable some
+  international permissions...`) — a Mexico geo-permissions restriction Twilio applies by default,
+  unrelated to our code; surfaced correctly in the UI instead of failing silently. User enabled
+  Mexico under Twilio Console → Voice → Geo Permissions → Low-Risk, resubmitted the same event, and
+  the verified phone **actually rang** and read the generated script aloud. `call_status` logged
+  `"initiated"`. Feature 7 fully verified end-to-end.
+  - Side note from testing: the two verified-contact test rows now both matter for later cleanup —
+    "Test Contacto" (`+525571703533`, confirmed in our app but never verified in Twilio) is still in
+    the list purely as demo/test data per the security floor in `docs/BUILD_PROMPT.md` §Security
+    floor item 5; fine to leave for now since it's the user's own test data, not someone else's real
+    number, but worth deleting before treating this as a finished deliverable.
 
-**Tomorrow's first move**: push this commit, confirm the deploy builds, then submit a matching
-simulated event on `https://escudo-sandy.vercel.app/dashboard` with a family contact that is both
-(a) confirmed in our app ("Confirmar número") and (b) verified in Twilio's own Console — confirm the
-phone actually rings and reads the script aloud, and that `call_status` logs correctly either way.
-Then build Feature 8 (alert history dashboard): a list of past `risk_events` joined with their
-`alert_calls`, scoped to the signed-in owner (re-confirm RLS specifically here per the packet's test
-plan item 4).
+- Built Feature 8 (alert history dashboard), the last feature in `docs/BUILD_PROMPT.md`:
+  - `components/alert-history-list.tsx` — renders each `risk_events` row (amount, payee, matched/
+    no-match badge, SIMULADO tag, timestamp) and, when one exists, its `alert_calls` row nested below
+    (call status badge + the script text that was read aloud).
+  - `app/dashboard/page.tsx` — added a third Supabase query using PostgREST's embedded-resource
+    syntax (`risk_events.select("...alert_calls(...)")`) rather than a second round trip, ordered
+    newest-first, capped at 20. Rendered as a fourth card, "Historial de alertas".
+  - RLS coverage: this is a nested select across two tables, each still governed by its own policy —
+    `risk_events` by `owner_id = auth.uid()` directly, `alert_calls` by the `exists (... risk_events
+    ... owner_id = auth.uid())` policy from `supabase/schema.sql`. No new policy needed; re-confirms
+    `docs/PACKET.md` test plan item 4 by construction, not by inspection alone — still worth the
+    user manually confirming with a second account before calling this fully verified.
+  - Checked: `npx tsc --noEmit` and `npm run lint` both clean.
+
+**Not done yet**
+- Nothing — all 8 features from `docs/BUILD_PROMPT.md` are now built. Remaining work is
+  verification, not construction: push, confirm the deploy, and run the full test plan.
+
+**Tomorrow's first move**: push this commit, confirm the deploy builds, then on
+`https://escudo-sandy.vercel.app/dashboard` confirm the "Historial de alertas" card shows both the
+matched and non-matched events from this session's testing, each matched one showing its script and
+call status. Then run the remaining items from `docs/PACKET.md` §10 test plan as a final pre-delivery
+pass: RLS test (sign in with a second Google account, confirm zero rows visible), mechanical pass
+(fresh end-to-end run, fix anything found), persona test (walk through the setup screen as if new).
+Also worth deleting the unverified "Test Contacto" row before calling this done, per the security
+floor's demo-data note.
