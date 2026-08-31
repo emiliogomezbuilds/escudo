@@ -146,13 +146,43 @@ code reads these exact names; `NEXT_PUBLIC_` is required for the browser client 
   etc. — `isSafeScript()` didn't need to intervene, but would have). Feature 6 fully verified
   end-to-end.
 
-**Not done yet**
-- Twilio Voice call placement + real Twilio Verify for contacts (Feature 7).
-- Alert history dashboard (Feature 8).
+- User created a Twilio trial account (product: Twilio, not Flex), got a trial phone number, and
+  verified a Caller ID (`+52 55 4090 1948`) in the Twilio Console. Added `TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` to Vercel themselves (same credential-handling rule as
+  Gemini — I never enter API keys/tokens myself).
+- Built Feature 7 (Twilio Voice call placement):
+  - `lib/twilio.ts` — `placeAlertCall(toNumber, scriptText)` using the `twilio` npm package
+    (`npm install twilio`, real install not hand-edited). Builds TwiML with `<Say language="es-MX">`
+    reading the script aloud, and passes it **inline** via the Calls resource's `twiml` parameter
+    (confirmed this parameter exists by reading the installed package's own `.d.ts`) rather than
+    requiring a separately hosted TwiML webhook endpoint — simpler for a one-shot announcement call
+    with no caller input to handle. Returns `{ ok, callSid, status }` or `{ ok: false, error }`,
+    never throws.
+  - Wired into `simulateRiskEvent`: on a matched event, after generating the script, looks up the
+    owner's first `verified = true` family contact and calls `placeAlertCall`. Updates the
+    `alert_calls` row's `call_status` to `"initiated"` or `"failed"` (with the Twilio error message
+    returned to the UI, not swallowed) rather than leaving it at the placeholder `"pending"`. If no
+    verified contact exists, logs `"failed"` with an explanatory message instead of silently no-oping.
+  - `components/simulate-event-form.tsx` now shows the real call outcome inline (green "llamada real
+    iniciada" or amber "no se pudo colocar la llamada" with the reason).
+  - **Two layers of "verified" now exist and are easy to confuse**: our app's own `family_contacts
+    .verified` flag (the "Confirmar número" button — a manual admin confirmation) is what gates
+    whether `simulateRiskEvent` will even attempt a call. Twilio's own Verified Caller IDs (trial
+    account restriction) is what gates whether Twilio will actually *place* that call. A contact can
+    be verified in our app but not in Twilio, in which case `call_status` will show `"failed"` with
+    a Twilio authorization error — that's expected on a trial account calling any number besides the
+    one verified in the Twilio Console.
+  - Checked: `npx tsc --noEmit` and `npm run lint` both clean. Not yet tested against the live
+    Twilio API (no credentials in this sandbox) — next session should push, then run a matching
+    simulated event and confirm the verified number actually rings.
 
-**Tomorrow's first move**: start Feature 7 (Twilio Voice call placement) per `docs/BUILD_PROMPT.md`.
-Will need `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` from the user's Twilio
-trial account (same handling rule as Gemini: I'll ask them to set these in Vercel themselves, never
-enter credentials myself). Trial accounts can only call **verified** numbers — the family contact's
-number must go through Twilio's own verification (not just our app's manual "Confirmar número"
-checkbox) before a real call will succeed, so that's worth surfacing to the user early.
+**Not done yet**
+- Alert history dashboard (Feature 8) — the last remaining feature in `docs/BUILD_PROMPT.md`.
+
+**Tomorrow's first move**: push this commit, confirm the deploy builds, then submit a matching
+simulated event on `https://escudo-sandy.vercel.app/dashboard` with a family contact that is both
+(a) confirmed in our app ("Confirmar número") and (b) verified in Twilio's own Console — confirm the
+phone actually rings and reads the script aloud, and that `call_status` logs correctly either way.
+Then build Feature 8 (alert history dashboard): a list of past `risk_events` joined with their
+`alert_calls`, scoped to the signed-in owner (re-confirm RLS specifically here per the packet's test
+plan item 4).

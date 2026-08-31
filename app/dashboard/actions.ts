@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { generateAlertScript } from "@/lib/gemini";
+import { placeAlertCall } from "@/lib/twilio";
 
 type ActionResult = { error?: string; success?: boolean };
 
@@ -107,6 +108,8 @@ const APP_OPEN_WINDOW_MIN = 15; // app-open must be this recent to count
 type SimulateResult = ActionResult & {
   matched?: boolean;
   scriptText?: string;
+  callStatus?: string;
+  callError?: string;
 };
 
 export async function simulateRiskEvent(
@@ -175,10 +178,16 @@ export async function simulateRiskEvent(
 
   if (error) return { error: error.message };
 
-  // Feature 6: on a matched event, generate the alert script (Feature 7 —
-  // actually placing the Twilio call — reads this row later; call_status
-  // stays "pending" until that exists).
+  // Feature 6 + 7: on a matched event, generate the alert script, then
+  // actually place the outbound Twilio call to the owner's first *verified*
+  // family contact (verified here = confirmed in our own app; a Twilio
+  // trial account additionally requires the number be a verified Caller ID
+  // in Twilio itself, or the call will fail with a Twilio error we surface
+  // below rather than silently swallow).
   let scriptText: string | undefined;
+  let callStatus: string | undefined;
+  let callError: string | undefined;
+
   if (matched && insertedEvent) {
     scriptText = await generateAlertScript({
       protectedPersonLabel: threshold.protected_person_label,
@@ -186,13 +195,35 @@ export async function simulateRiskEvent(
       payeeLabel,
     });
 
+    const { data: contact } = await supabase
+      .from("family_contacts")
+      .select("phone_e164")
+      .eq("verified", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (contact) {
+      const result = await placeAlertCall(contact.phone_e164, scriptText);
+      if (result.ok) {
+        callStatus = "initiated";
+      } else {
+        callStatus = "failed";
+        callError = result.error;
+      }
+    } else {
+      callStatus = "failed";
+      callError =
+        "No hay ningún contacto familiar confirmado (Verificado) para llamar.";
+    }
+
     await supabase.from("alert_calls").insert({
       risk_event_id: insertedEvent.id,
       script_text: scriptText,
-      call_status: "pending",
+      call_status: callStatus,
     });
   }
 
   revalidatePath("/dashboard");
-  return { success: true, matched, scriptText };
+  return { success: true, matched, scriptText, callStatus, callError };
 }

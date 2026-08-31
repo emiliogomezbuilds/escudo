@@ -13,6 +13,8 @@ type FormState = {
   error?: string;
   matched?: boolean;
   scriptText?: string;
+  callStatus?: string;
+  callError?: string;
   submittedAt: number;
 };
 
@@ -20,6 +22,8 @@ const initialState: FormState = {
   error: undefined,
   matched: undefined,
   scriptText: undefined,
+  callStatus: undefined,
+  callError: undefined,
   submittedAt: 0,
 };
 
@@ -48,6 +52,8 @@ export function SimulateEventForm({ hasThreshold }: { hasThreshold: boolean }) {
           error: result.error,
           matched: undefined,
           scriptText: undefined,
+          callStatus: undefined,
+          callError: undefined,
           submittedAt: prev.submittedAt,
         };
       }
@@ -55,6 +61,8 @@ export function SimulateEventForm({ hasThreshold }: { hasThreshold: boolean }) {
         error: undefined,
         matched: result.matched,
         scriptText: result.scriptText,
+        callStatus: result.callStatus,
+        callError: result.callError,
         submittedAt: Date.now(),
       };
     },
@@ -145,12 +153,22 @@ export function SimulateEventForm({ hasThreshold }: { hasThreshold: boolean }) {
       {!state.error && state.submittedAt > 0 && state.matched && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-red-600">
-            ⚠ Patrón coincide — evento guardado. Guion de alerta generado
-            (la llamada de voz real llega en una próxima feature):
+            ⚠ Patrón coincide — evento guardado. Guion de alerta generado:
           </p>
           {state.scriptText && (
             <p className="rounded-md border bg-muted/50 p-3 text-sm italic">
               &ldquo;{state.scriptText}&rdquo;
+            </p>
+          )}
+          {state.callStatus === "initiated" && (
+            <p className="text-sm font-medium text-green-600">
+              ☎ Llamada real iniciada al contacto familiar verificado.
+            </p>
+          )}
+          {state.callStatus === "failed" && (
+            <p className="text-sm text-amber-600">
+              ☎ No se pudo colocar la llamada real
+              {state.callError ? `: ${state.callError}` : "."}
             </p>
           )}
         </div>
